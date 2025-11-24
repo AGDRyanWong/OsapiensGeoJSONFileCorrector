@@ -4,7 +4,7 @@ import shapely.geometry
 import folium
 from streamlit_folium import st_folium
 
-def simplify_features(features, tolerance=0.001):
+def simplify_features(features, tolerance=0.00001):
     """Simplifies Polygon/MultiPolygon features while preserving properties."""
     simplified = []
     for feature in features:
@@ -32,13 +32,15 @@ def count_coordinates(geometry):
 st.title("GeoJSON Polygon Simplifier")
 st.write("Upload a GeoJSON file to simplify polygon geometries and compare before/after visualizations.")
 
+# More conservative tolerance range for 50-80% reduction
 tolerance = st.slider(
     "Simplification Tolerance (degrees)", 
-    min_value=0.0001, 
-    max_value=0.01, 
-    value=0.001, 
-    step=0.0001,
-    help="Lower values preserve more detail, higher values simplify more aggressively"
+    min_value=0.00001, 
+    max_value=0.0001, 
+    value=0.00003,
+    step=0.00001,
+    format="%.5f",
+    help="Lower values preserve more detail. Start with 0.00003 and adjust as needed."
 )
 
 uploaded_file = st.file_uploader("Upload your GeoJSON file", type=["geojson", "json"])
@@ -73,6 +75,12 @@ if uploaded_file:
     col1.metric("Original Points", f"{original_coords:,}")
     col2.metric("Simplified Points", f"{simplified_coords:,}")
     col3.metric("Reduction", f"{reduction_pct:.1f}%")
+    
+    # Show warning if reduction is too extreme
+    if reduction_pct > 85:
+        st.warning("⚠️ Reduction exceeds 85%. Consider lowering the tolerance to preserve shape better.")
+    elif reduction_pct >= 50 and reduction_pct <= 80:
+        st.success("✅ Good reduction range (50-80%)")
     
     # Calculate center point for maps
     first_geom = shapely.geometry.shape(features[0]['geometry'])
